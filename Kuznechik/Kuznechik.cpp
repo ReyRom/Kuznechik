@@ -87,19 +87,19 @@ static unsigned char iter_C[32][16];
 static unsigned char iter_key[10][16];
 
 static unsigned char* X(unsigned char* a, unsigned char* b) {
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		res[i] = a[i] ^ b[i];
+		a[i] = a[i] ^ b[i];
 	}
-	return res;
+	return a;
 }
 
 static unsigned char* S(unsigned char* a) {
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		res[i] = Pi[a[i]];
+		a[i] = Pi[a[i]];
 	}
-	return res;
+	return a;
 }
 
 static unsigned char GF_mul(unsigned char a, unsigned char b) {
@@ -113,7 +113,7 @@ static unsigned char GF_mul(unsigned char a, unsigned char b) {
 		}
 		hi_bit = a & 0x80;
 		a <<= 1;
-		if (hi_bit < 0) {
+		if (hi_bit & 0x80) {
 			a ^= 0xC3;
 		}
 		b >>= 1;
@@ -124,46 +124,41 @@ static unsigned char GF_mul(unsigned char a, unsigned char b) {
 static unsigned char* R(unsigned char* a) {
 	
 	unsigned char a_15 = 0;
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
 
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		if (i == 0) {
-			res[15] = a[i];
-		}
-		else {
-			res[i-1] = a[i];
-		}
+		a[i-1] = a[i];
+
 		a_15 ^= GF_mul(a[i], l_vec[i]);
 	}
 
-	res[15] = a_15;
+	a[15] = a_15;
 
-	return res;
+	return a;
 }
 
 static unsigned char* L(unsigned char* a) {
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
 	
-	memcpy(res, a, BLOCK_SIZE);
+	//memcpy(res, a, BLOCK_SIZE);
 
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		res = R(res);
+		a = R(a);
 	}
 
-	return res;
+	return a;
 }
 
 static unsigned char* S_reverse(unsigned char* a) {
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		res[i] = Pi_reverse[a[i]];
+		a[i] = Pi_reverse[a[i]];
 	}
-	return res;
+	return a;
 }
 
 static unsigned char* R_reverse(unsigned char* a) {
-	unsigned char a_0;
-	a_0 = a[15];
+	unsigned char a_0 = a[15];
 	unsigned char* res = new unsigned char[BLOCK_SIZE];
 	for (int i = 1; i < BLOCK_SIZE; i++) {
 		res[i] = a[i - 1];
@@ -175,12 +170,13 @@ static unsigned char* R_reverse(unsigned char* a) {
 }
 
 static unsigned char* L_reverse(unsigned char* a) {
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
-	memcpy(res, a, BLOCK_SIZE);
+	//unsigned char* res = new unsigned char[BLOCK_SIZE];
+	//memcpy(res, a, BLOCK_SIZE);
+	
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		res = R_reverse(res);
+		a = R_reverse(a);
 	}
-	return res;
+	return a;
 }
 
 static void generate_iter_C() {
@@ -196,7 +192,6 @@ static void generate_iter_C() {
 			iter_C[i][j] = L_result[j];
 		}
 	}
-	
 }
 
 static unsigned char* F(unsigned char* key, unsigned char* iter_const){
@@ -228,13 +223,12 @@ static unsigned char* F(unsigned char* key, unsigned char* iter_const){
 
 static void generate_iter_key(unsigned char* key) {
 	
-	unsigned char* iter = new unsigned char[32];
+	unsigned char* iter = key;
 
 	generate_iter_C();
 
-	memcpy(iter_key[0], key, 16);
-	memcpy(iter_key[1], key + 16, 16);
-	memcpy(iter, key, 32);
+	memcpy(iter_key[0], iter, 16);
+	memcpy(iter_key[1], iter + 16, 16);
 	
 	for (int i = 0; i < 4; i++)
 	{
@@ -245,6 +239,7 @@ static void generate_iter_key(unsigned char* key) {
 		memcpy(iter_key[2*i+2], iter, 16);
 		memcpy(iter_key[2*i+3], iter + 16, 16);
 	}
+	delete[] iter;
 }
 
 static unsigned char* encrypt_block(unsigned char* block) {
@@ -289,4 +284,6 @@ int main()
 	unsigned char* dec;
 	dec = decrypt_block(enc);
 	std::cout << "Decrypted: " << dec << std::endl;
+
+	std::cout << "Original: " << text << std::endl;
 }
