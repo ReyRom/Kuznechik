@@ -1,11 +1,12 @@
-п»ї
-#include <iostream>
+#define KUZNECHIK_EXPORTS
 
+#include "Kuznechik.h"
+#include <cstring>  // Для memcpy
 
 static int BLOCK_SIZE = 16;
 
-// С‚Р°Р±Р»РёС†Р° РїСЂСЏРјРѕРіРѕ РЅРµР»РёРЅРµР№РЅРѕРіРѕ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
-static unsigned char Pi[] = {
+// таблица прямого нелинейного преобразования
+static uint8_t Pi[] = {
 0xFC, 0xEE, 0xDD, 0x11, 0xCF, 0x6E, 0x31, 0x16,
 0xFB, 0xC4, 0xFA, 0xDA, 0x23, 0xC5, 0x04, 0x4D,
 0xE9, 0x77, 0xF0, 0xDB, 0x93, 0x2E, 0x99, 0xBA,
@@ -40,8 +41,8 @@ static unsigned char Pi[] = {
 0xD1, 0x66, 0xAF, 0xC2, 0x39, 0x4B, 0x63, 0xB6
 };
 
-// С‚Р°Р±Р»РёС†Р° РѕР±СЂР°С‚РЅРѕРіРѕ РЅРµР»РёРЅРµР№РЅРѕРіРѕ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
-static unsigned char Pi_reverse[]  = {
+// таблица обратного нелинейного преобразования
+static uint8_t Pi_reverse[] = {
 0xA5, 0x2D, 0x32, 0x8F, 0x0E, 0x30, 0x38, 0xC0,
 0x54, 0xE6, 0x9E, 0x39, 0x55, 0x7E, 0x52, 0x91,
 0x64, 0x03, 0x57, 0x5A, 0x1C, 0x60, 0x07, 0x18,
@@ -76,36 +77,34 @@ static unsigned char Pi_reverse[]  = {
 0xD6, 0x20, 0x0A, 0x08, 0x00, 0x4C, 0xD7, 0x74
 };
 
-// РІРµРєС‚РѕСЂ Р»РёРЅРµР№РЅРѕРіРѕ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
-static unsigned char l_vec[] = {
+// вектор линейного преобразования
+static uint8_t l_vec[] = {
 1, 148, 32, 133, 16, 194, 192, 1, 251, 1, 192, 194, 16, 133, 32, 148
 };
 
-// РјР°СЃСЃРёРІ РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РєРѕРЅСЃС‚Р°РЅС‚
-static unsigned char iter_C[32][16];
-// РјР°СЃСЃРёРІ РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РєР»СЋС‡РµР№
-static unsigned char iter_key[10][16];
+// массив для хранения констант
+static uint8_t iter_C[32][16];
+// массив для хранения ключей
+static uint8_t iter_key[10][16];
 
-static unsigned char* X(unsigned char* a, unsigned char* b) {
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
+static uint8_t* X(uint8_t* a, uint8_t* b) {
 	for (int i = 0; i < BLOCK_SIZE; i++) {
 		a[i] = a[i] ^ b[i];
 	}
 	return a;
 }
 
-static unsigned char* S(unsigned char* a) {
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
+static uint8_t* S(uint8_t* a) {
 	for (int i = 0; i < BLOCK_SIZE; i++) {
 		a[i] = Pi[a[i]];
 	}
 	return a;
 }
 
-static unsigned char GF_mul(unsigned char a, unsigned char b) {
+static uint8_t GF_mul(uint8_t a, uint8_t b) {
 
-	unsigned char res = 0;
-	unsigned char hi_bit;
+	uint8_t res = 0;
+	uint8_t hi_bit;
 
 	for (int i = 0; i < 8; i++) {
 		if (b & 1) {
@@ -121,13 +120,12 @@ static unsigned char GF_mul(unsigned char a, unsigned char b) {
 	return res;
 }
 
-static unsigned char* R(unsigned char* a) {
-	
-	unsigned char a_15 = 0;
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
+static uint8_t* R(uint8_t* a) {
+
+	uint8_t a_15 = 0;
 
 	for (int i = 0; i < BLOCK_SIZE; i++) {
-		a[i-1] = a[i];
+		a[i - 1] = a[i];
 
 		a_15 ^= GF_mul(a[i], l_vec[i]);
 	}
@@ -137,11 +135,7 @@ static unsigned char* R(unsigned char* a) {
 	return a;
 }
 
-static unsigned char* L(unsigned char* a) {
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
-	
-	//memcpy(res, a, BLOCK_SIZE);
-
+static uint8_t* L(uint8_t* a) {
 	for (int i = 0; i < BLOCK_SIZE; i++) {
 		a = R(a);
 	}
@@ -149,17 +143,16 @@ static unsigned char* L(unsigned char* a) {
 	return a;
 }
 
-static unsigned char* S_reverse(unsigned char* a) {
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
+static uint8_t* S_reverse(uint8_t* a) {
 	for (int i = 0; i < BLOCK_SIZE; i++) {
 		a[i] = Pi_reverse[a[i]];
 	}
 	return a;
 }
 
-static unsigned char* R_reverse(unsigned char* a) {
-	unsigned char a_0 = a[15];
-	unsigned char* res = new unsigned char[BLOCK_SIZE];
+static uint8_t* R_reverse(uint8_t* a) {
+	uint8_t a_0 = a[15];
+	uint8_t* res = new uint8_t[BLOCK_SIZE];
 	for (int i = 1; i < BLOCK_SIZE; i++) {
 		res[i] = a[i - 1];
 		a_0 ^= GF_mul(res[i], l_vec[i]);
@@ -169,10 +162,7 @@ static unsigned char* R_reverse(unsigned char* a) {
 	return res;
 }
 
-static unsigned char* L_reverse(unsigned char* a) {
-	//unsigned char* res = new unsigned char[BLOCK_SIZE];
-	//memcpy(res, a, BLOCK_SIZE);
-	
+static uint8_t* L_reverse(uint8_t* a) {
 	for (int i = 0; i < BLOCK_SIZE; i++) {
 		a = R_reverse(a);
 	}
@@ -180,24 +170,24 @@ static unsigned char* L_reverse(unsigned char* a) {
 }
 
 static void generate_iter_C() {
-	unsigned char* C = new unsigned char[BLOCK_SIZE];
+	uint8_t* C = new uint8_t[BLOCK_SIZE];
 
 	for (int i = 0; i < 32; i++) {
 		for (int j = 0; j < BLOCK_SIZE; j++) {
 			C[j] = 0;
 		}
-		C[0] = i+1;
-		unsigned char* L_result = L(C);
+		C[0] = i + 1;
+		uint8_t* L_result = L(C);
 		for (int j = 0; j < BLOCK_SIZE; j++) {
 			iter_C[i][j] = L_result[j];
 		}
 	}
 }
 
-static unsigned char* F(unsigned char* key, unsigned char* iter_const){
-	unsigned char* new_key = new unsigned char[32];
-	unsigned char* left = new unsigned char[16];
-	unsigned char* right = new unsigned char[16];
+static uint8_t* F(uint8_t* key, uint8_t* iter_const) {
+	uint8_t* new_key = new uint8_t[32];
+	uint8_t* left = new uint8_t[16];
+	uint8_t* right = new uint8_t[16];
 
 	memcpy(left, key, 16);
 	memcpy(right, key + 16, 16);
@@ -221,29 +211,29 @@ static unsigned char* F(unsigned char* key, unsigned char* iter_const){
 	return new_key;
 }
 
-static void generate_iter_key(unsigned char* key) {
-	
-	unsigned char* iter = key;
+static void generate_iter_key(const uint8_t* key) {
+	uint8_t* iter = new uint8_t[32];
+	memcpy(iter, key, 32);
 
 	generate_iter_C();
 
 	memcpy(iter_key[0], iter, 16);
 	memcpy(iter_key[1], iter + 16, 16);
-	
+
 	for (int i = 0; i < 4; i++)
 	{
 		for (int j = 0; j < 8; j++)
 		{
 			iter = F(iter, iter_C[j + 8 * i]);
 		}
-		memcpy(iter_key[2*i+2], iter, 16);
-		memcpy(iter_key[2*i+3], iter + 16, 16);
+		memcpy(iter_key[2 * i + 2], iter, 16);
+		memcpy(iter_key[2 * i + 3], iter + 16, 16);
 	}
 	delete[] iter;
 }
 
-static unsigned char* encrypt_block(unsigned char* block) {
-	unsigned char* new_block = new unsigned char[BLOCK_SIZE];
+static uint8_t* encrypt_block(const uint8_t* block) {
+	uint8_t* new_block = new uint8_t[BLOCK_SIZE];
 	memcpy(new_block, block, BLOCK_SIZE);
 	for (int i = 0; i < 9; i++)
 	{
@@ -253,8 +243,8 @@ static unsigned char* encrypt_block(unsigned char* block) {
 	return new_block;
 }
 
-static unsigned char* decrypt_block(unsigned char* block) {
-	unsigned char* new_block = new unsigned char[BLOCK_SIZE];
+static uint8_t* decrypt_block(const uint8_t* block) {
+	uint8_t* new_block = new uint8_t[BLOCK_SIZE];
 	memcpy(new_block, block, BLOCK_SIZE);
 	new_block = X(new_block, iter_key[9]);
 	for (int i = 8; i >= 0; i--)
@@ -262,30 +252,20 @@ static unsigned char* decrypt_block(unsigned char* block) {
 		new_block = X(S_reverse(L_reverse(new_block)), iter_key[i]);
 	}
 	return new_block;
-}	
+}
 
+extern "C" {
+	KUZNECHIK_API void InitKey(const uint8_t* key) {
+        generate_iter_key(key);
+    }
 
+	KUZNECHIK_API void EncryptBlock(const uint8_t* input, uint8_t* output) {
+		memcpy(output, input, BLOCK_SIZE);
+		output = encrypt_block(output);
+    }
 
-
-int main()
-{
-	unsigned char key[] = {
-		0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00,
-		0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88,
-		0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01,
-		0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe };
-
-	unsigned char text[] = "Hello my World!";
-
-	generate_iter_key(key);
-
-	unsigned char* enc;
-	enc = encrypt_block(text);
-	std::cout << "Encrypted: " << enc << std::endl;
-
-	unsigned char* dec;
-	dec = decrypt_block(enc);
-	std::cout << "Decrypted: " << dec << std::endl;
-
-	std::cout << "Original: " << text << std::endl;
+	KUZNECHIK_API void DecryptBlock(const uint8_t* input, uint8_t* output) {
+		memcpy(output, input, BLOCK_SIZE);
+		output = decrypt_block(output);
+    }
 }
